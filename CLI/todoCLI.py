@@ -67,7 +67,7 @@ def list_todo(filename, priority, status):
             click.echo(f"{item['id']} [{item['priority']}] [{item['status']}] | {item['name']} - {item['description']}")
 
 @main.command()
-@click.argument("id", type=int, prompt="Enter the todo ID: ", help="Todo ID to delete")
+@click.argument("id", type=int, prompt="Enter the todo ID", help="Todo ID to delete")
 @click.option("-f", "--filename", type=click.Path(), default="json/todoCLI.json")
 def delete_todo(id, filename):
     file = ensure_directory(filename)
@@ -82,6 +82,55 @@ def delete_todo(id, filename):
             break
     if not found:
         click.echo("Todo not found!")
+@main.command()
+@click.argument("id", type=int, prompt="Enter the todo ID", help="Todo ID to update")
+@click.option("-f", "--filename", type=click.Path(), default="json/todoCLI.json")
+@click.option("-n", "--name", help="The new todo name")
+@click.option("-d", "--desc", help="The new todo description")
+@click.option("-p", "--priority", type=click.Choice(PRIORITIES.keys()), help="Priority level: o=optional, l=low, m=medium, h=high, c=crucial")
+def update_todo(id,filename, name, desc, priority):
+    file = ensure_directory(filename)
+    data = load_data(file)
+    found = False
+    updated = False
+    old_val = ''
+    new_val = ''
+    for item in data:
+        if item["id"] == id:
+            found = True
+            old_val = f"{item['id']} [{item['priority']}] [{item['status']}] | {item['name']} - {item['description']}"
+            click.echo(old_val)
+            if name is not None:
+                if name == item['name']:
+                    click.echo(f"todo already has the name: {item['name']}")
+                else:
+                    item['name'] = name
+                    updated = True
+            if desc is not None:
+                if desc == item['description']:
+                    click.echo(f"todo already has the description: {item['description']}")
+                else:
+                    item['description'] = desc
+                    updated = True
+            if priority is not None:
+                if PRIORITIES[priority] == item['priority']:
+                    click.echo(f"todo already has the priority: {item['priority']}")
+                else:
+                    item['priority'] = PRIORITIES[priority]
+                    updated = True
+
+            new_val = f"{item['id']} [{item['priority']}] [{item['status']}] | {item['name']} - {item['description']}"
+            break
+    if not found:
+        click.echo("Todo not found!")
+    else:
+        if updated:
+            click.echo(f"Before: {old_val}")
+            click.echo(f"After: {new_val}")
+            click.echo("Todo updated")
+            save_data(file, data)
+        else:
+            click.echo("No changes made")
 
 def ensure_directory(filepath):
     folder = os.path.dirname(filepath)
