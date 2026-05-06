@@ -18,23 +18,42 @@ STATUS= {
 def main():
     pass
 
+def ensure_directory(filepath):
+    folder = os.path.dirname(filepath)
+    if folder and not os.path.exists(folder):
+        os.makedirs(folder)
+    return filepath
+def load_data(file):
+    if not os.path.exists(file):
+        data = []
+    else:
+        with open(file, "r") as f:
+            try:
+                data = json.load(f)
+            except json.JSONDecodeError:
+                data= []
+    return data
+def save_data(file, data):
+    with open(file, "w") as f:
+        json.dump(data, f, indent=2)
+
 @main.command()
 @click.option("-n", "--name", prompt="Enter the todo name", help="The todo name")
 @click.option("-d", "--desc", prompt="Enter the todo description", help="The todo desciption")
 @click.option("-p", "--priority", type=click.Choice(PRIORITIES.keys()), default="m", help="Priority level: o=optional, l=low, m=medium, h=high, c=crucial")
-@click.option("-s", "--status", type=click.Choice(STATUS.keys()), default="i", help="Status: i=in progress, c=completed, d=deleted")
 @click.option("-f", "--filename", type=click.Path(), default="json/todoCLI.json")
-def add_todo(name, desc, priority, status, filename):
+def add_todo(name, desc, priority, filename):
     file = ensure_directory(filename)
     data = load_data(file)
     for item in data:
         if item["name"] == name:
-            return click.echo(f"Todo name exist: {name}")
+            click.echo(f"Todo name exist: {name}")
+            return
     if data:
         new_id = max(item.get("id", 0) for item in data) + 1
     else:
         new_id = 1
-    data.append({"id": new_id, "name": name, "description": desc, "priority": PRIORITIES[priority], "status": STATUS[status]})
+    data.append({"id": new_id, "name": name, "description": desc, "priority": PRIORITIES[priority], "status": STATUS['i']})
     click.echo(f"Added todo: {name}")
     save_data(file, data)
 
@@ -46,44 +65,50 @@ def list_todo(filename, priority, status):
     file = ensure_directory(filename)
     data = load_data(file)
     if not data:
-        return click.echo("No todos!")
+        click.echo("No todos!")
+        return
     output = []
     for item in data:
         keep_item = True
-        if item['status'] == STATUS['d'] and status != "d":
-                keep_item = False
-        if priority is not None:
-            if item['priority'] != PRIORITIES[priority]:
-                keep_item = False
-        if status is not None:
-            if item['status'] != STATUS[status]:
-                keep_item = False
+        if item['status'] == STATUS['d'] and status != 'd':
+            keep_item = False
+        if priority is not None and item['priority'] != PRIORITIES[priority]:
+            keep_item = False 
+        if status is not None and item['status'] != STATUS[status]:
+            keep_item = False 
         if keep_item:
             output.append(item)
     if not output:
-        return click.echo(f"No matching todos found!")
+        click.echo(f"No matching todos found!")
     else:
         for item in output:
             click.echo(f"{item['id']} [{item['priority']}] [{item['status']}] | {item['name']} - {item['description']}")
 
 @main.command()
-@click.argument("id", type=int, prompt="Enter the todo ID", help="Todo ID to delete")
+@click.argument("id", type=int)
 @click.option("-f", "--filename", type=click.Path(), default="json/todoCLI.json")
 def delete_todo(id, filename):
     file = ensure_directory(filename)
     data = load_data(file)
     found = False
+    new_val = ''
     for item in data:   
         if item["id"] == id:
-            found= True
+            found = True
+            if item['status'] == STATUS["d"]:
+                click.echo("Todo is marked 'deleted'")
+                return
             item["status"] = STATUS['d']
-            click.echo(f"Deleted todo: [{item['priority']}] [{item['status']}] |{item['name']} - {item['description']}")
-            save_data(file, data)
+            new_val = f"[{item['priority']}] [{item['status']}] | {item['name']} - {item['description']}"
             break
-    if not found:
+    if found:
+        click.echo(f"Deleted : {new_val}")
+        save_data(file, data)
+    else:
         click.echo("Todo not found!")
+
 @main.command()
-@click.argument("id", type=int, prompt="Enter the todo ID", help="Todo ID to update")
+@click.argument("id", type=int)
 @click.option("-f", "--filename", type=click.Path(), default="json/todoCLI.json")
 @click.option("-n", "--name", help="The new todo name")
 @click.option("-d", "--desc", help="The new todo description")
@@ -98,8 +123,13 @@ def update_todo(id,filename, name, desc, priority):
     for item in data:
         if item["id"] == id:
             found = True
+            if item['status'] == STATUS["d"]:
+                click.echo("Todo is marked 'deleted'")
+                return
+            if item['status'] == STATUS["c"]:
+                click.echo("Todo completed, cannot update")
+                return
             old_val = f"{item['id']} [{item['priority']}] [{item['status']}] | {item['name']} - {item['description']}"
-            click.echo(old_val)
             if name is not None:
                 if name == item['name']:
                     click.echo(f"todo already has the name: {item['name']}")
@@ -132,24 +162,32 @@ def update_todo(id,filename, name, desc, priority):
         else:
             click.echo("No changes made")
 
-def ensure_directory(filepath):
-    folder = os.path.dirname(filepath)
-    if folder and not os.path.exists(folder):
-        os.makedirs(folder)
-    return filepath
-def load_data(file):
-    if not os.path.exists(file):
-        data = []
+@main.command()
+@click.argument("id", type=int)
+@click.option("-f", "--filename", type=click.Path(), default="json/todoCLI.json")
+def done_todo(id, filename):
+    file = ensure_directory(filename)
+    data = load_data(file)
+    found = False
+    new_val = ''
+    for item in data:
+        if item['id'] == id:
+            if item['status'] == STATUS["c"]:
+                click.echo("Todo is already 'completed'")
+                return
+            if item['status'] == STATUS["d"]:
+                click.echo("Todo is marked 'deleted'")
+                return
+            found = True
+            item['status'] = STATUS["c"]
+            new_val = f"{item['id']} [{item['priority']}] [{item['status']}] | {item['name']} - {item['description']}"
+            break
+    if found:
+        save_data(file, data)
+        click.echo(new_val)
+        click.echo("Todo completed!")
     else:
-        with open(file, "r") as f:
-            try:
-                data = json.load(f)
-            except json.JSONDecodeError:
-                data= []
-    return data
-def save_data(file, data):
-    with open(file, "w") as f:
-        json.dump(data, f, indent=2)
+        click.echo("Todo not found")
 
 if __name__ == "__main__":
     main()
