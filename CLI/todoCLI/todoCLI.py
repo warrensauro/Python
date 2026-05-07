@@ -148,7 +148,6 @@ def update_todo(id,filename, name, desc, priority):
                 else:
                     item['priority'] = PRIORITIES[priority]
                     updated = True
-
             new_val = f"{item['id']} [{item['priority']}] [{item['status']}] | {item['name']} - {item['description']}"
             break
     if not found:
@@ -189,5 +188,26 @@ def done_todo(id, filename):
     else:
         click.echo("Todo not found")
 
+@main.command()
+@click.option("-f", "--filename", type=click.Path(), default="json/todoCLI.json")
+def trash(filename):
+    file = ensure_directory(filename)
+    data = load_data(file)
+    
+    deleted_items = [item for item in data if item['status'] == STATUS["d"]]
+    new_data = [item for item in data if item['status'] != STATUS["d"]]
+
+    if not deleted_items:
+        click.echo("No deleted todos.")
+        return
+    click.echo("Items marked for permanent deletion:")
+    for item in deleted_items:
+        click.echo(f"{item['id']} [{item['priority']}] [{item['status']}] | {item['name']} - {item['description']}")
+    
+    if click.confirm("Do you want to trash all deleted todos?", default=False):
+        save_data(file, new_data)
+        click.echo("Successfully trashed deleted todos!")
+    else:
+        click.echo("Trashing aborted.")
 if __name__ == "__main__":
     main()
