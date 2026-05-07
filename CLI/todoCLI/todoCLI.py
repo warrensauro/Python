@@ -1,6 +1,7 @@
 import click
 import json
 import os
+from datetime import date
 
 PRIORITIES= {
     "o": "optional",
@@ -53,7 +54,7 @@ def add_todo(name, desc, priority, filename):
         new_id = max(item.get("id", 0) for item in data) + 1
     else:
         new_id = 1
-    data.append({"id": new_id, "name": name, "description": desc, "priority": PRIORITIES[priority], "status": STATUS['i']})
+    data.append({"id": new_id, "name": name, "description": desc, "priority": PRIORITIES[priority], "status": STATUS['i'], "date-added": date.today().isoformat()})
     click.echo(f"Added todo: {name}")
     save_data(file, data)
 
@@ -61,7 +62,9 @@ def add_todo(name, desc, priority, filename):
 @click.option("-f", "--filename", type=click.Path(), default="json/todoCLI.json")
 @click.option("-p", "--priority", type=click.Choice(PRIORITIES.keys()), help="Priority level: o=optional, l=low, m=medium, h=high, c=crucial")
 @click.option("-s", "--status", type=click.Choice(STATUS.keys()), help="Status: i=in progress, c=completed, d=deleted")
-def list_todo(filename, priority, status):
+@click.option("-y", "--year", type=int, help="Filter by year")
+@click.option('-m', "--month", type=click.IntRange(1, 12), help="Filter by month (1-12)")
+def list_todo(filename, priority, status, year, month):
     file = ensure_directory(filename)
     data = load_data(file)
     if not data:
@@ -70,19 +73,24 @@ def list_todo(filename, priority, status):
     output = []
     for item in data:
         keep_item = True
+        todo_date = date.fromisoformat(item['date-added'])
         if item['status'] == STATUS['d'] and status != 'd':
             keep_item = False
         if priority is not None and item['priority'] != PRIORITIES[priority]:
             keep_item = False 
         if status is not None and item['status'] != STATUS[status]:
-            keep_item = False 
+            keep_item = False
+        if year is not None and todo_date.year != year:
+            keep_item = False
+        if month is not None and todo_date.month != month:
+            keep_item = False
         if keep_item:
             output.append(item)
     if not output:
         click.echo(f"No matching todos found!")
     else:
         for item in output:
-            click.echo(f"{item['id']} [{item['priority']}] [{item['status']}] | {item['name']} - {item['description']}")
+            click.echo(f"{item['id']} [{item['priority']}] [{item['status']}] | {item['name']} - {item['description']} - {item['date-added']}")
 
 @main.command()
 @click.argument("id", type=int)
@@ -99,7 +107,7 @@ def delete_todo(id, filename):
                 click.echo("Todo is marked 'deleted'")
                 return
             item["status"] = STATUS['d']
-            new_val = f"[{item['priority']}] [{item['status']}] | {item['name']} - {item['description']}"
+            new_val = f"[{item['priority']}] [{item['status']}] | {item['name']} - {item['description']} - {item['date-added']}"
             break
     if found:
         click.echo(f"Deleted : {new_val}")
@@ -129,7 +137,7 @@ def update_todo(id,filename, name, desc, priority):
             if item['status'] == STATUS["c"]:
                 click.echo("Todo completed, cannot update")
                 return
-            old_val = f"{item['id']} [{item['priority']}] [{item['status']}] | {item['name']} - {item['description']}"
+            old_val = f"{item['id']} [{item['priority']}] [{item['status']}] | {item['name']} - {item['description']} - {item['date-added']}"
             if name is not None:
                 if name == item['name']:
                     click.echo(f"todo already has the name: {item['name']}")
@@ -148,7 +156,7 @@ def update_todo(id,filename, name, desc, priority):
                 else:
                     item['priority'] = PRIORITIES[priority]
                     updated = True
-            new_val = f"{item['id']} [{item['priority']}] [{item['status']}] | {item['name']} - {item['description']}"
+            new_val = f"{item['id']} [{item['priority']}] [{item['status']}] | {item['name']} - {item['description']} - {item['date-added']}"
             break
     if not found:
         click.echo("Todo not found!")
@@ -179,7 +187,7 @@ def done_todo(id, filename):
                 return
             found = True
             item['status'] = STATUS["c"]
-            new_val = f"{item['id']} [{item['priority']}] [{item['status']}] | {item['name']} - {item['description']}"
+            new_val = f"{item['id']} [{item['priority']}] [{item['status']}] | {item['name']} - {item['description']} - {item['date-added']}"
             break
     if found:
         save_data(file, data)
@@ -202,7 +210,7 @@ def trash(filename):
         return
     click.echo("Items marked for permanent deletion:")
     for item in deleted_items:
-        click.echo(f"{item['id']} [{item['priority']}] [{item['status']}] | {item['name']} - {item['description']}")
+        click.echo(f"{item['id']} [{item['priority']}] [{item['status']}] | {item['name']} - {item['description']} - {item['date-added']}")
     
     if click.confirm("Do you want to trash all deleted todos?", default=False):
         save_data(file, new_data)
