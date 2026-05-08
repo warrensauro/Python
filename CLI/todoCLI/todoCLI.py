@@ -3,17 +3,29 @@ import json
 import os
 from datetime import date
 
-PRIORITIES= {
+PRIORITIES={
     "o": "optional",
     "l": "low",
     "m": "medium",
     "h": "high",
     "c": "crucial"
 }
-STATUS= {
+PRIORITIES_COLORS={
+    "crucial": "red",
+    "high": "bright_red",
+    "medium": "yellow",
+    "low": "cyan",
+    "optional": "blue" 
+}
+STATUS={
     "i": "in progress",
     "c": "completed",
     "d": "deleted"
+}
+STATUS_COLORS={
+    "in progress": "white",
+    "completed": "green",
+    "deleted": "bright_black"
 }
 @click.group()
 @click.option("-f", "--filename", type=click.Path(), default="json/todoCLI.json", help="Todo JSON file")
@@ -40,6 +52,15 @@ def load_data(file):
 def save_data(file, data):
     with open(file, "w") as f:
         json.dump(data, f, indent=2)
+def format_todo(item):
+    p_color = PRIORITIES_COLORS.get(item['priority'], 'white')
+    s_color = STATUS_COLORS.get(item['status'], "white")
+    formatted_item = ( 
+        f"{click.style(str(item['id']), fg='bright_white')} "
+        f"[{click.style(item['priority'], fg=p_color)}] [{click.style(item['status'], fg=s_color)}] "
+        f"| {item['name']} - {item['description']} - {item['date_added']}"
+    )
+    return formatted_item
 
 @main.command()
 @click.pass_context
@@ -50,7 +71,7 @@ def add_todo(ctx, name, desc, priority):
     file = ctx.obj["FILE"]
     data = load_data(file)
     for item in data:
-        if item["name"] == name:
+        if item["name"].lower() == name.lower():
             click.echo(f"Todo name exist: {name}")
             return
     if data:
@@ -71,12 +92,12 @@ def list_todo(ctx, priority, status, year, month):
     file = ctx.obj["FILE"]
     data = load_data(file)
     if not data:
-        click.echo("No todos!")
+        click.secho("No todos!", fg="red")
         return
     output = []
     for item in data:
         keep_item = True
-        todo_date = date.fromisoformat(item['date_added'])
+        todo_date = date.fromisoformat(item.get('date_added', date.today().isoformat()))
         if item['status'] == STATUS['d'] and status != 'd':
             keep_item = False
         if priority is not None and item['priority'] != PRIORITIES[priority]:
@@ -90,10 +111,10 @@ def list_todo(ctx, priority, status, year, month):
         if keep_item:
             output.append(item)
     if not output:
-        click.echo(f"No matching todos found!")
+        click.secho(f"No matching todos found!", fg="red")
     else:
         for item in output:
-            click.echo(f"{item['id']} [{item['priority']}] [{item['status']}] | {item['name']} - {item['description']} - {item['date_added']}")
+            click.echo(format_todo(item))
 
 @main.command()
 @click.pass_context
@@ -110,13 +131,13 @@ def delete_todo(ctx, id):
                 click.echo("Todo is marked 'deleted'")
                 return
             item["status"] = STATUS['d']
-            new_val = f"[{item['priority']}] [{item['status']}] | {item['name']} - {item['description']} - {item['date_added']}"
+            new_val = format_todo(item)
             break
     if found:
         click.echo(f"Deleted : {new_val}")
         save_data(file, data)
     else:
-        click.echo("Todo not found!")
+        click.secho("Todo not found!", fg="red")
 
 @main.command()
 @click.pass_context
@@ -140,7 +161,7 @@ def update_todo(ctx, id, name, desc, priority):
             if item['status'] == STATUS["c"]:
                 click.echo("Todo completed, cannot update")
                 return
-            old_val = f"{item['id']} [{item['priority']}] [{item['status']}] | {item['name']} - {item['description']} - {item['date_added']}"
+            old_val = format_todo(item)
             if name is not None:
                 if name == item['name']:
                     click.echo(f"todo already has the name: {item['name']}")
@@ -159,10 +180,10 @@ def update_todo(ctx, id, name, desc, priority):
                 else:
                     item['priority'] = PRIORITIES[priority]
                     updated = True
-            new_val = f"{item['id']} [{item['priority']}] [{item['status']}] | {item['name']} - {item['description']} - {item['date_added']}"
+            new_val = format_todo(item)
             break
     if not found:
-        click.echo("Todo not found!")
+        click.secho("Todo not found!", fg="red")
     else:
         if updated:
             click.echo(f"Before: {old_val}")
@@ -190,14 +211,14 @@ def done_todo(ctx, id):
                 return
             found = True
             item['status'] = STATUS["c"]
-            new_val = f"{item['id']} [{item['priority']}] [{item['status']}] | {item['name']} - {item['description']} - {item['date_added']}"
+            new_val = format_todo(item)
             break
     if found:
         save_data(file, data)
         click.echo(new_val)
-        click.echo("Todo completed!")
+        click.secho("Todo completed!", fg="green")
     else:
-        click.echo("Todo not found")
+        click.secho("Todo not found", fg="red")
 
 @main.command()
 @click.pass_context
@@ -213,12 +234,12 @@ def trash(ctx):
         return
     click.echo("Items marked for permanent deletion:")
     for item in deleted_items:
-        click.echo(f"{item['id']} [{item['priority']}] [{item['status']}] | {item['name']} - {item['description']} - {item['date_added']}")
+        click.echo(format_todo(item))
     
     if click.confirm("Do you want to trash all deleted todos?", default=False):
         save_data(file, new_data)
-        click.echo("Successfully trashed deleted todos!")
+        click.secho("Successfully trashed deleted todos!", fg="green")
     else:
-        click.echo("Trashing aborted.")
+        click.secho("Trashing aborted.", fg="red")
 if __name__ == "__main__":
     main()
