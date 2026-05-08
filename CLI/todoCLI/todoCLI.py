@@ -97,7 +97,7 @@ def list_todo(ctx, priority, status, year, month):
     output = []
     for item in data:
         keep_item = True
-        todo_date = date.fromisoformat(item.get('date_added', date.today().isoformat()))
+        todo_date = date.fromisoformat(item['date_added'])
         if item['status'] == STATUS['d'] and status != 'd':
             keep_item = False
         if priority is not None and item['priority'] != PRIORITIES[priority]:
