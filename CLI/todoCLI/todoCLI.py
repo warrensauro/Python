@@ -55,10 +55,26 @@ def save_data(file, data):
 def format_todo(item):
     p_color = PRIORITIES_COLORS.get(item['priority'], 'white')
     s_color = STATUS_COLORS.get(item['status'], "white")
+
+    due_display = "No due date"
+    due_color = "white"
+    if item['due_date'] is not None:
+        if item['status'] != STATUS["c"]:
+            diff = date.fromisoformat(item['due_date']) - date.today()
+            days_left = diff.days
+            if days_left > 0:
+                due_color = "green"
+            elif days_left == 0:
+                due_color = "yellow"
+            else:
+                due_color = "red"
+
+        due_display = item['due_date']
+
     formatted_item = ( 
         f"{click.style(str(item['id']), fg='bright_white')} "
         f"[{click.style(item['priority'], fg=p_color)}] [{click.style(item['status'], fg=s_color)}] "
-        f"| {item['name']} - {item['description']} - {item['date_added']}"
+        f"| {item['name']} - {item['description']} - {item['date_added']} | {click.style(due_display, fg=due_color)}"
     )
     return formatted_item
 
@@ -67,7 +83,8 @@ def format_todo(item):
 @click.option("-n", "--name", prompt="Enter the todo name", help="The todo name")
 @click.option("-d", "--desc", prompt="Enter the todo description", help="The todo desciption")
 @click.option("-p", "--priority", type=click.Choice(PRIORITIES.keys()), default="m", help="Priority level: o=optional, l=low, m=medium, h=high, c=crucial")
-def add_todo(ctx, name, desc, priority):
+@click.option("--due", type=click.DateTime(formats=["%Y-%m-%d"]), default=None, help="Due date (YYYY-MM-DD)")
+def add_todo(ctx, name, desc, priority, due):
     file = ctx.obj["FILE"]
     data = load_data(file)
     for item in data:
@@ -78,7 +95,7 @@ def add_todo(ctx, name, desc, priority):
         new_id = max(item.get("id", 0) for item in data) + 1
     else:
         new_id = 1
-    data.append({"id": new_id, "name": name, "description": desc, "priority": PRIORITIES[priority], "status": STATUS['i'], "date_added": date.today().isoformat()})
+    data.append({"id": new_id, "name": name, "description": desc, "priority": PRIORITIES[priority], "status": STATUS['i'], "date_added": date.today().isoformat(), "due_date": due.date().isoformat() if due else None})
     click.echo(f"Added todo: {name}")
     save_data(file, data)
 
@@ -145,7 +162,8 @@ def delete_todo(ctx, id):
 @click.option("-n", "--name", help="The new todo name")
 @click.option("-d", "--desc", help="The new todo description")
 @click.option("-p", "--priority", type=click.Choice(PRIORITIES.keys()), help="Priority level: o=optional, l=low, m=medium, h=high, c=crucial")
-def update_todo(ctx, id, name, desc, priority):
+@click.option("--due", type=click.DateTime(formats=["%Y-%m-%d"]), default=None, help="Due date (YYYY-MM-DD)")
+def update_todo(ctx, id, name, desc, priority, due):
     file = ctx.obj["FILE"]
     data = load_data(file)
     found = False
@@ -179,6 +197,15 @@ def update_todo(ctx, id, name, desc, priority):
                     click.echo(f"todo already has the priority: {item['priority']}")
                 else:
                     item['priority'] = PRIORITIES[priority]
+                    updated = True
+            if due is not None:
+                due_date = None
+                if item['due_date'] is not None:
+                    due_date = date.fromisoformat(item['due_date'])
+                if due_date and due.date() == due_date:
+                    click.echo(f"todo has the due date: {due_date}")
+                else:
+                    item['due_date'] = due.date().isoformat()
                     updated = True
             new_val = format_todo(item)
             break
