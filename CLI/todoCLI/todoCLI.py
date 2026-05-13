@@ -268,5 +268,25 @@ def trash(ctx):
         click.secho("Successfully trashed deleted todos!", fg="green")
     else:
         click.secho("Trashing aborted.", fg="red")
+
+@main.command()
+@click.pass_context
+def today(ctx):
+    file = ctx.obj['FILE']
+    data = load_data(file)
+
+    shown_data = []
+    for item in data:
+        if item['due_date'] is not None:
+            if item['status'] != STATUS["c"] and item['status'] != STATUS["d"]:
+                diff = date.fromisoformat(item['due_date']) - date.today()
+                if diff.days == 0:
+                    shown_data.append(item)
+    if shown_data:
+        click.echo(f"{len(shown_data)} todo/s due today:")
+        for item in shown_data:
+            click.echo(format_todo(item))
+    else:
+        click.echo("No todos due today!")
 if __name__ == "__main__":
     main()
