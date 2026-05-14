@@ -71,11 +71,15 @@ def format_todo(item):
 
         due_display = item['due_date']
 
-    formatted_item = ( 
+    base_info =( 
         f"{click.style(str(item['id']), fg='bright_white')} "
         f"[{click.style(item['priority'], fg=p_color)}] [{click.style(item['status'], fg=s_color)}] "
-        f"| {item['name']} - {item['description']} - {item['date_added']} | {click.style(due_display, fg=due_color)}"
+        f"| {item['name']} - {item['description']} - {item['date_added']} | {click.style(due_display, fg=due_color)} "
     )
+    if item['date_completed']:
+        formatted_item = f"{base_info}| {click.style(item['date_completed'], fg='green')}"
+    else:
+        formatted_item = base_info
     return formatted_item
 
 @main.command()
@@ -95,7 +99,9 @@ def add_todo(ctx, name, desc, priority, due):
         new_id = max(item.get("id", 0) for item in data) + 1
     else:
         new_id = 1
-    data.append({"id": new_id, "name": name, "description": desc, "priority": PRIORITIES[priority], "status": STATUS['i'], "date_added": date.today().isoformat(), "due_date": due.date().isoformat() if due else None})
+    data.append({"id": new_id, "name": name, "description": desc, "priority": PRIORITIES[priority],
+                 "status": STATUS['i'], "date_added": date.today().isoformat(), "due_date": due.date().isoformat() if due else None,
+                 "date_completed": None})
     click.echo(f"Added todo: {name}")
     save_data(file, data)
 
@@ -238,6 +244,7 @@ def done_todo(ctx, id):
                 return
             found = True
             item['status'] = STATUS["c"]
+            item['date_completed'] = date.today().isoformat()
             new_val = format_todo(item)
             break
     if found:
@@ -288,5 +295,53 @@ def today(ctx):
             click.echo(format_todo(item))
     else:
         click.echo("No todos due today!")
+
+@main.command()
+@click.pass_context
+def overdue(ctx):
+    file = ctx.obj['FILE']
+    data = load_data(file)
+
+    shown_data = []
+    for item in data:
+        if item['due_date'] is not None:
+            if item['status'] != STATUS["c"] and item['status'] != STATUS["d"]:
+                diff = date.fromisoformat(item['due_date']) - date.today()
+                if diff.days < 0:
+                    shown_data.append(item)
+    if shown_data:
+        click.echo(f"{len(shown_data)} overdue todo/s:")
+        for item in shown_data:
+            click.echo(format_todo(item))
+    else:
+        click.echo("No overdue todos!")
+
+@main.command()
+@click.pass_context
+@click.option('-d', '--days', type=int, help="Filter by number of days")
+def upcoming(ctx, days):
+    file = ctx.obj['FILE']
+    data = load_data(file)
+
+    shown_data = []
+    for item in data:
+        if item['due_date'] is not None:
+            if item['status'] != STATUS["c"] and item['status'] != STATUS["d"]:
+                diff = date.fromisoformat(item['due_date']) - date.today()
+                if diff.days > 0:
+                    if days is not None:
+                        if diff.days <= days:
+                            shown_data.append(item)
+                    else:
+                        shown_data.append(item)
+    if shown_data:
+        if days is not None:
+            click.echo(f"{len(shown_data)} upcoming todos (next {days} days):")
+        else:
+            click.echo(f"{len(shown_data)} upcoming todos:")
+        for item in shown_data:
+            click.echo(format_todo(item))
+    else:
+        click.echo("No upcoming todos!")
 if __name__ == "__main__":
     main()
