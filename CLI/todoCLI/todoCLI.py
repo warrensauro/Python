@@ -86,11 +86,12 @@ def format_todo(item):
 @click.pass_context
 @click.option("-n", "--name", prompt="Enter the todo name", help="The todo name")
 @click.option("-d", "--desc", prompt="Enter the todo description", help="The todo desciption")
-@click.option("-p", "--priority", type=click.Choice(PRIORITIES.keys()), default="m", help="Priority level: o=optional, l=low, m=medium, h=high, c=crucial")
+@click.option("-p", "--priority", type=click.Choice(PRIORITIES.keys(), case_sensitive=False), default="m", help="Priority level: o=optional, l=low, m=medium, h=high, c=crucial")
 @click.option("--due", type=click.DateTime(formats=["%Y-%m-%d"]), default=None, help="Due date (YYYY-MM-DD)")
 def add_todo(ctx, name, desc, priority, due):
     file = ctx.obj["FILE"]
     data = load_data(file)
+    priority = priority.lower()
     for item in data:
         if item["name"].lower() == name.lower():
             click.echo(f"Todo name exist: {name}")
@@ -107,11 +108,13 @@ def add_todo(ctx, name, desc, priority, due):
 
 @main.command()
 @click.pass_context
-@click.option("-p", "--priority", type=click.Choice(PRIORITIES.keys()), help="Priority level: o=optional, l=low, m=medium, h=high, c=crucial")
-@click.option("-s", "--status", type=click.Choice(STATUS.keys()), help="Status: i=in progress, c=completed, d=deleted")
+@click.option("-p", "--priority", type=click.Choice(PRIORITIES.keys() , case_sensitive=False), help="Priority level: o=optional, l=low, m=medium, h=high, c=crucial")
+@click.option("-s", "--status", type=click.Choice(STATUS.keys(), case_sensitive=False), help="Status: i=in progress, c=completed, d=deleted")
 @click.option("-y", "--year", type=int, help="Filter by year")
-@click.option('-m', "--month", type=click.IntRange(1, 12), help="Filter by month (1-12)")
-def list_todo(ctx, priority, status, year, month):
+@click.option("-m", "--month", type=click.IntRange(1, 12), help="Filter by month (1-12)")
+@click.option("--search", help="Search todo/s name or description")
+@click.option("--sort", type=click.Choice(['priority', 'status', 'added', 'due'], case_sensitive=False))
+def list_todo(ctx, priority, status, year, month, search, sort):
     file = ctx.obj["FILE"]
     data = load_data(file)
     if not data:
@@ -123,19 +126,44 @@ def list_todo(ctx, priority, status, year, month):
         todo_date = date.fromisoformat(item['date_added'])
         if item['status'] == STATUS['d'] and status != 'd':
             keep_item = False
-        if priority is not None and item['priority'] != PRIORITIES[priority]:
+        if priority is not None and item['priority'] != PRIORITIES[priority.lower()]:
             keep_item = False 
-        if status is not None and item['status'] != STATUS[status]:
+        if status is not None and item['status'] != STATUS[status.lower()]:
             keep_item = False
         if year is not None and todo_date.year != year:
             keep_item = False
         if month is not None and todo_date.month != month:
             keep_item = False
+        if search is not None:
+            if search.lower() not in item['name'].lower() and search.lower() not in item['description'].lower():
+                keep_item = False 
+
         if keep_item:
             output.append(item)
     if not output:
         click.secho(f"No matching todos found!", fg="red")
     else:
+        if sort is not None:
+            if sort.lower() == 'priority':
+                priority_order = {
+                'crucial': 0,
+                'high': 1,
+                'medium': 2,
+                'low': 3,
+                'optional': 4
+                }
+                output.sort(key=lambda item: priority_order[item['priority']])
+            elif sort.lower() == 'status':
+                status_order = {
+                    'in progress': 0,
+                    'completed': 1,
+                    'deleted': 2
+                }
+                output.sort(key=lambda item: status_order[item['status']])
+            elif sort.lower() == 'added':
+                output.sort(key=lambda item: item['date_added'])
+            elif sort.lower() == 'due':
+                output.sort(key=lambda item: item['due_date'] or '9999-12-31')
         for item in output:
             click.echo(format_todo(item))
 
@@ -167,7 +195,7 @@ def delete_todo(ctx, id):
 @click.argument("id", type=int)
 @click.option("-n", "--name", help="The new todo name")
 @click.option("-d", "--desc", help="The new todo description")
-@click.option("-p", "--priority", type=click.Choice(PRIORITIES.keys()), help="Priority level: o=optional, l=low, m=medium, h=high, c=crucial")
+@click.option("-p", "--priority", type=click.Choice(PRIORITIES.keys(), case_sensitive=False), help="Priority level: o=optional, l=low, m=medium, h=high, c=crucial")
 @click.option("--due", type=click.DateTime(formats=["%Y-%m-%d"]), default=None, help="Due date (YYYY-MM-DD)")
 def update_todo(ctx, id, name, desc, priority, due):
     file = ctx.obj["FILE"]
@@ -199,10 +227,10 @@ def update_todo(ctx, id, name, desc, priority, due):
                     item['description'] = desc
                     updated = True
             if priority is not None:
-                if PRIORITIES[priority] == item['priority']:
+                if PRIORITIES[priority.lower()] == item['priority']:
                     click.echo(f"todo already has the priority: {item['priority']}")
                 else:
-                    item['priority'] = PRIORITIES[priority]
+                    item['priority'] = PRIORITIES[priority.lower()]
                     updated = True
             if due is not None:
                 due_date = None
