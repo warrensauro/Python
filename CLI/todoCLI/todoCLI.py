@@ -82,7 +82,7 @@ def format_todo(item):
         formatted_item = base_info
     return formatted_item
 
-@main.command()
+@main.command(name='add')
 @click.pass_context
 @click.option("-n", "--name", prompt="Enter the todo name", help="The todo name")
 @click.option("-d", "--desc", prompt="Enter the todo description", help="The todo desciption")
@@ -106,7 +106,7 @@ def add_todo(ctx, name, desc, priority, due):
     click.echo(f"Added todo: {name}")
     save_data(file, data)
 
-@main.command()
+@main.command(name='list')
 @click.pass_context
 @click.option("-p", "--priority", type=click.Choice(PRIORITIES.keys() , case_sensitive=False), help="Priority level: o=optional, l=low, m=medium, h=high, c=crucial")
 @click.option("-s", "--status", type=click.Choice(STATUS.keys(), case_sensitive=False), help="Status: i=in progress, c=completed, d=deleted")
@@ -167,7 +167,7 @@ def list_todo(ctx, priority, status, year, month, search, sort):
         for item in output:
             click.echo(format_todo(item))
 
-@main.command()
+@main.command(name='delete')
 @click.pass_context
 @click.argument("id", type=int)
 def delete_todo(ctx, id):
@@ -190,7 +190,7 @@ def delete_todo(ctx, id):
     else:
         click.secho("Todo not found!", fg="red")
 
-@main.command()
+@main.command(name='update')
 @click.pass_context
 @click.argument("id", type=int)
 @click.option("-n", "--name", help="The new todo name")
@@ -254,7 +254,7 @@ def update_todo(ctx, id, name, desc, priority, due):
         else:
             click.echo("No changes made")
 
-@main.command()
+@main.command(name='done')
 @click.pass_context
 @click.argument("id", type=int)
 def done_todo(ctx, id):
@@ -371,5 +371,59 @@ def upcoming(ctx, days):
             click.echo(format_todo(item))
     else:
         click.echo("No upcoming todos!")
+
+@main.command()
+@click.pass_context
+def stats(ctx):
+    file = ctx.obj['FILE']
+    data = load_data(file)
+
+    total = 0
+    in_progress = 0
+    completed = 0
+    deleted = 0
+    crucial_prio = 0
+    high_prio = 0
+    due_over = 0
+    due_today = 0
+    due_upcoming = 0
+    for item in data:
+        total += 1
+        if item['status'] == STATUS['i']:
+            in_progress += 1
+        if item['status'] == STATUS['c']:
+            completed += 1
+        if item['status'] == STATUS['d']:
+            deleted += 1
+
+        if item['priority'] == PRIORITIES['c']:
+            crucial_prio += 1
+        if item['priority'] == PRIORITIES['h']:
+            high_prio += 1
+
+        if item['due_date'] is not None:
+            if item['status'] != STATUS["c"] and item['status'] != STATUS["d"]:
+                diff = date.fromisoformat(item['due_date']) - date.today()
+                if diff.days < 0:
+                    due_over += 1
+                if diff.days == 0:
+                    due_today += 1
+                if diff.days > 0:
+                    due_upcoming += 1
+
+    completion_rate = 0
+    if (total - deleted) > 0:
+        completion_rate = completed / (total - deleted)
+
+    click.echo(f"Total todos     : {total}")
+    click.echo(f"In progress     : {in_progress}")
+    click.echo(f"Completed       : {completed}")
+    click.echo(f"Deleted         : {deleted}")
+    click.echo(f"Completion Rate : {completion_rate:.1%}\n")
+    click.echo(f"High Priority   : {high_prio}")
+    click.echo(f"Crucial Priority: {crucial_prio}\n")
+    click.echo(f"Overdue todos   : {due_over}")
+    click.echo(f"Due today       : {due_today}")
+    click.echo(f"Upcoming todos  : {due_upcoming}")
 if __name__ == "__main__":
     main()
