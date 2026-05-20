@@ -304,6 +304,30 @@ def trash(ctx):
     else:
         click.secho("Trashing aborted.", fg="red")
 
+@main.command(name='restore')
+@click.argument("id", type=int)
+@click.pass_context
+def restore_todo(ctx, id):
+    file = ctx.obj['FILE']
+    data = load_data(file)
+
+    deleted_items = [item for item in data if item['status'] == STATUS['d']]
+
+    if not deleted_items:
+        click.echo("No deleted todos.")
+        return
+    found = False
+    for item in deleted_items:
+        if id == item['id']:
+            found = True
+            item['status'] = STATUS["i"] 
+            click.echo("Deleted item restored!")
+            click.echo(format_todo(item))
+            save_data(file, data)
+            break
+    if not found:
+        click.echo(f"No deleted todo found with id: {id}")
+
 @main.command()
 @click.pass_context
 def today(ctx):
