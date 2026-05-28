@@ -12,3 +12,9 @@ def data_overview(df):
         "data types": data_types
     }
     return meta
+
+def filter_rows(df, column, value):
+    if column not in df.columns:
+        raise KeyError(f"No column named {column}")
+    filtered_df = df[df[column] == value]
+    return filtered_df
