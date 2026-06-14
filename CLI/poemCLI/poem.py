@@ -1,10 +1,16 @@
 import os
 import json
+import click
 from poetpy import get_poetry
 
 FOLDER = "json"
 FILE = "read_poems.json"
 FILEPATH = os.path.join(FOLDER, FILE)
+
+@click.group()
+def main():
+    pass
+
 def load_data():
     if not os.path.exists(FOLDER):
         os.makedirs(FOLDER)
@@ -21,19 +27,29 @@ def save_data(data):
      with open(FILEPATH, "w") as f:
           json.dump(data, f, indent=2)
 
-def get_poem(max_retries=10):
+def display_poem(poem):
+    if poem:
+        click.echo(f"Title : {poem.get('title', 'Untitled')}")
+        click.echo(f"Author: {poem.get('author', 'No author')}\n")
+
+        for line in poem.get('lines', []):
+            click.echo(line)
+
+@main.command(name='new')
+def new_poem(max_retries=10):
     poem_history = load_data()
 
+    success = False
     while max_retries:
         try:
             response = get_poetry("random", "1")
         except Exception as e:
-            print(f"Unable to read PoetryDB ({e})")
-            return None
+            click.echo(f"Unable to read PoetryDB ({e})")
+            return
 
         if not response or not isinstance(response, list):
-            print("Error: Failed to retrieve data from PoetryDB")
-            return None
+            click.echo("Error: Failed to retrieve data from PoetryDB")
+            return
 
         poem_dict = response[0]
         title = poem_dict.get("title", "Untitled").strip()
@@ -51,7 +67,9 @@ def get_poem(max_retries=10):
         if found:
             max_retries -= 1
             continue
-
+        
+        display_poem(poem_dict)
+        reflection = click.prompt("Write your reflection")
         if poem_history:
             new_id = max(item.get('id', 0) for item in poem_history) + 1
         else:
@@ -60,21 +78,16 @@ def get_poem(max_retries=10):
         data = {
             'id': new_id,
             'title': title,
-            'author': author
+            'author': author,
+            'lines': poem_dict.get("lines", []),
+            'reflection': reflection
         }
         poem_history.append(data)
         save_data(poem_history)
-        return poem_dict
-    
-    print("Alert: Reached maximum retries. No unread unique poems were found. Retry")
-    return None
+        success = True
+        return
+    if not success:
+        click.echo("Alert: Reached maximum retries. No unread unique poems were found. Retry")
 
 if __name__ == "__main__":
-    poem = get_poem()
-
-    if poem:
-        print(f"Title : {poem.get('title', 'Untitled')}")
-        print(f"Author: {poem.get('author', 'No author')}\n")
-
-        for line in poem.get('lines', []):
-            print(line)
+    main()
