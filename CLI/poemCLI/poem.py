@@ -89,5 +89,19 @@ def new_poem(max_retries=10):
     if not success:
         click.echo("Alert: Reached maximum retries. No unread unique poems were found. Retry")
 
+@main.command()
+def history():
+    poem_history = load_data()
+
+    if not poem_history:
+        click.echo("History empty. Read a poem.")
+        return
+    for item in poem_history:
+        click.echo(
+            f"Id:         {item.get('id', '')}\n"
+            f"Title:      {item.get('title', '')}\n"
+            f"Author:     {item.get('author', '')}\n"
+            f"Reflection: {item.get('reflection', '')}\n\n"
+        )
 if __name__ == "__main__":
     main()
