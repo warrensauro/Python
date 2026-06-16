@@ -127,7 +127,7 @@ def view(id):
             click.echo(
                 f"\nReflection: {item.get('reflection', '')}\n"
                 )
-        return    
+            return    
     if not found:
         click.echo(f"Poem with id {id} not found.")
 if __name__ == "__main__":
