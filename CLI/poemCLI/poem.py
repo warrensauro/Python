@@ -103,5 +103,32 @@ def history():
             f"Author:     {item.get('author', '')}\n"
             f"Reflection: {item.get('reflection', '')}\n\n"
         )
+
+@main.command()
+@click.argument('id', type=int)
+def view(id):
+    poem_history = load_data()
+
+    if not poem_history:
+        click.echo("History empty. Read a poem.")
+        return
+    
+    found = False
+    for item in poem_history:
+        if item['id'] == id:
+            found = True
+            click.echo(
+                f"Id:         {item.get('id', '')}\n"
+                f"Title:      {item.get('title', '')}\n"
+                f"Author:     {item.get('author', '')}\n"
+                f"Poem:"
+            )
+            click.echo('\n'.join(item.get('lines', [])))
+            click.echo(
+                f"\nReflection: {item.get('reflection', '')}\n"
+                )
+        return    
+    if not found:
+        click.echo(f"Poem with id {id} not found.")
 if __name__ == "__main__":
     main()
