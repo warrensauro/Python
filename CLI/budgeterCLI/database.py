@@ -22,9 +22,9 @@ def insert_transaction(description, category, amount):
     conn = connect()
     c = conn.cursor()
 
-    c.execute("Insert into transactions (description, category, amount) values (?,?,?) returning id, amount", (description, category, amount))
-    conn.commit()
+    c.execute("Insert into transactions (description, category, amount) values (?,?,?) returning id, amount", (description, category, amount))  
     result = c.fetchone()
+    conn.commit()
     conn.close()
 
     return result
@@ -54,8 +54,8 @@ def update_transaction(id, description, category, amount):
     c = conn.cursor()
 
     c.execute("Update transactions set description = ?, category = ?, amount = ? where id = ? returning id, amount", (description, category, amount, id))
-    conn.commit()
     result = c.fetchone()
+    conn.commit()
     conn.close()
 
     return result
