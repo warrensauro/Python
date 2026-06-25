@@ -12,7 +12,8 @@ def create_table():
                 id integer PRIMARY KEY,
                 description text NOT NULL,
                 category text NOT NULL,
-                amount real NOT NULL
+                amount real NOT NULL,
+                is_deleted bool NOT NULL DEFAULT FALSE
               )
     """)
     conn.commit()
@@ -33,7 +34,7 @@ def get_all_transactions():
     conn = connect()
     c = conn.cursor()
 
-    c.execute("Select * from transactions")
+    c.execute("Select * from transactions where is_deleted = FALSE")
     result = c.fetchall()
     conn.close()
 
@@ -43,7 +44,7 @@ def get_transaction(id):
     conn = connect()
     c = conn.cursor()
 
-    c.execute("Select * from transactions where id = ?", (id,))
+    c.execute("Select * from transactions where id = ? and is_deleted = FALSE", (id,))
     result = c.fetchone()
     conn.close()
 
@@ -53,7 +54,18 @@ def update_transaction(id, description, category, amount):
     conn = connect()
     c = conn.cursor()
 
-    c.execute("Update transactions set description = ?, category = ?, amount = ? where id = ? returning id, amount", (description, category, amount, id))
+    c.execute("Update transactions set description = ?, category = ?, amount = ? where id = ? and is_deleted = FALSE returning id, amount", (description, category, amount, id))
+    result = c.fetchone()
+    conn.commit()
+    conn.close()
+
+    return result
+
+def delete_transaction(id):
+    conn = connect()
+    c = conn.cursor()
+
+    c.execute("Update transactions set is_deleted = TRUE where id = ? and is_deleted = FALSE returning id, amount", (id,))
     result = c.fetchone()
     conn.commit()
     conn.close()
