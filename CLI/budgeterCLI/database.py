@@ -20,7 +20,7 @@ def create_table():
     conn.commit()
     conn.close()
 
-def insert_transaction(description, category, amount):
+def insert(description, category, amount):
     conn = connect()
     c = conn.cursor()
 
@@ -31,7 +31,7 @@ def insert_transaction(description, category, amount):
 
     return result
 
-def get_all_transactions():
+def get_all():
     conn = connect()
     c = conn.cursor()
 
@@ -41,7 +41,7 @@ def get_all_transactions():
 
     return result
 
-def get_transaction(id):
+def get_by_id(id):
     conn = connect()
     c = conn.cursor()
 
@@ -51,7 +51,7 @@ def get_transaction(id):
 
     return result
 
-def get_deleted_transactions():
+def get_deleted():
     conn = connect()
     c = conn.cursor()
 
@@ -61,7 +61,7 @@ def get_deleted_transactions():
 
     return result
 
-def get_transactions_by_category(category):
+def get_by_category(category):
     conn = connect()
     c= conn.cursor()
 
@@ -71,7 +71,7 @@ def get_transactions_by_category(category):
 
     return result
 
-def get_transactions_by_date_range(start_date, end_date):
+def get_by_date_range(start_date, end_date):
     conn = connect()
     c = conn.cursor()
 
@@ -81,7 +81,7 @@ def get_transactions_by_date_range(start_date, end_date):
 
     return result
 
-def update_transaction(id, description, category, amount):
+def update(id, description, category, amount):
     conn = connect()
     c = conn.cursor()
 
@@ -92,7 +92,7 @@ def update_transaction(id, description, category, amount):
 
     return result
 
-def delete_transaction(id):
+def delete(id):
     conn = connect()
     c = conn.cursor()
 
@@ -103,7 +103,7 @@ def delete_transaction(id):
 
     return result
 
-def restore_transaction(id):
+def restore(id):
     conn = connect()
     c = conn.cursor()
 
